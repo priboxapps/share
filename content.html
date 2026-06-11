@@ -249,32 +249,48 @@
         }, 1000);
     }
 
-    // Display Content (Rich PriBox layout)
-    async function displayContent() {
-        if (isContentDisplayed) return;
-        try {
-            const contentDisplayDiv = document.getElementById('contentDisplay');
-            const contentType = linkData.type || 'text';
-            let html = '';
-            if (contentType === 'photos') html = buildPhotoHTML();
-            else html = buildTextHTML();
-            contentDisplayDiv.innerHTML = html;
-            document.getElementById('unlockSection').style.display = 'none';
-            document.getElementById('contentSection').style.display = 'block';
-            isContentDisplayed = true;
-            if (document.getElementById('passwordInput')) document.getElementById('passwordInput').value = '';
-            
-            if (contentType === 'photos') attachPhotoEvents();
-            
-            if (linkData.viewOnce && !linkData.isDestroyed) {
-                startViewOnceCountdown();
-            }
-        } catch (err) { 
-            console.error(err); 
-            showError(`Display error: ${err.message}`); 
+    // ========== NEW: BUILD MIXED CONTENT (TEXT + PHOTOS) ==========
+    function buildMixedHTML() {
+        const title = linkData.title || 'Shared Content';
+        const viewOnceBadge = linkData.viewOnce ? '<span class="badge-pribox badge-viewonce">View Once</span>' : '';
+        const accessBadge = linkData.hasPassword ? 
+            '<span class="badge-pribox badge-password">Protected</span>' : 
+            '<span class="badge-pribox badge-open">Open Access</span>';
+        
+        let html = `<div class="content-display-card">
+            <div class="content-header">
+                <div class="content-title"><span class="material-icons">article</span> ${escapeHtml(title)}</div>
+                <div class="badge-group">${accessBadge} ${viewOnceBadge}</div>
+            </div>`;
+        
+        // Text content (if any)
+        if (linkData.textContent && linkData.textContent.trim()) {
+            html += `<div class="content-body-text">${escapeHtml(linkData.textContent).replace(/\n/g, '<br>')}</div>`;
         }
+        
+        // Photos (if any)
+        const photos = linkData.photos || [];
+        if (photos.length > 0) {
+            currentPhotos = photos;
+            html += `<div class="photo-gallery-pribox" id="photoGalleryGrid">`;
+            photos.forEach((photo, idx) => {
+                html += `
+                    <div class="photo-card-pribox" data-photo-index="${idx}">
+                        <img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">
+                        <div class="photo-info">
+                            <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+        
+        html += buildMetaFooter() + `</div>`;
+        return html;
     }
 
+    // Legacy builders (kept for backward compatibility with old links)
     function buildTextHTML() {
         const title = linkData.title || 'Untitled';
         const viewOnceBadge = linkData.viewOnce ? '<span class="badge-pribox badge-viewonce">View Once</span>' : '';
@@ -332,7 +348,43 @@
         return meta;
     }
 
+    // ========== UPDATED DISPLAY CONTENT (supports 'mixed', 'text', 'photos') ==========
+    async function displayContent() {
+        if (isContentDisplayed) return;
+        try {
+            const contentDisplayDiv = document.getElementById('contentDisplay');
+            const contentType = linkData.type || 'text';
+            let html = '';
+            if (contentType === 'mixed') {
+                html = buildMixedHTML();
+            } else if (contentType === 'photos') {
+                html = buildPhotoHTML();
+            } else { // 'text' or any other
+                html = buildTextHTML();
+            }
+            contentDisplayDiv.innerHTML = html;
+            document.getElementById('unlockSection').style.display = 'none';
+            document.getElementById('contentSection').style.display = 'block';
+            isContentDisplayed = true;
+            if (document.getElementById('passwordInput')) document.getElementById('passwordInput').value = '';
+            
+            // Attach photo events if any photo gallery exists
+            if ((contentType === 'mixed' && linkData.photos && linkData.photos.length) || contentType === 'photos') {
+                attachPhotoEvents();
+            }
+            
+            if (linkData.viewOnce && !linkData.isDestroyed) {
+                startViewOnceCountdown();
+            }
+        } catch (err) { 
+            console.error(err); 
+            showError(`Display error: ${err.message}`); 
+        }
+    }
+
     function attachPhotoEvents() {
+        const gallery = document.getElementById('photoGalleryGrid');
+        if (!gallery) return;
         document.querySelectorAll('.photo-card-pribox').forEach(card => {
             card.addEventListener('click', (e) => {
                 const idx = parseInt(card.getAttribute('data-photo-index'));
