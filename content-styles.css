@@ -517,3 +517,38 @@ body {
     display: flex;
     gap: 12px;
 }
+
+
+
+/* Temporary message styling */
+.temp-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-top: 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.6);
+    border-left: 3px solid;
+    animation: fadeInUp 0.2s ease;
+}
+
+.temp-message.success {
+    border-left-color: var(--success);
+    color: var(--success);
+}
+
+.temp-message.info {
+    border-left-color: var(--info);
+    color: var(--primary-light);
+}
+
+.temp-message.error {
+    border-left-color: var(--danger);
+    color: var(--danger);
+}
+
+.temp-message .material-icons {
+    font-size: 16px;
+}

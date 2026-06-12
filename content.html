@@ -46,6 +46,9 @@
             <div id="contentSection" style="display: none;">
                 <div id="contentDisplay"></div>
                 <div class="button-group" style="margin-top: 8px;">
+                    <button id="shareLinkBtn" class="btn-pribox btn-secondary">
+                        <span class="material-icons">share</span> Share Link
+                    </button>
                     <button id="backToUnlockBtn" class="btn-pribox btn-secondary">
                         <span class="material-icons">arrow_back</span> Go Back
                     </button>
@@ -576,6 +579,57 @@
         return div.innerHTML; 
     }
     
+
+    // Share current link (uses Web Share API if available, otherwise copies)
+async function shareCurrentLink() {
+    const currentUrl = window.location.href;
+    const title = linkData?.title || 'PriBox Shared Content';
+    
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: title,
+                text: 'Check out this shared content on PriBox!',
+                url: currentUrl
+            });
+            showTemporaryMessage('Shared successfully!', 'success');
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Share failed:', error);
+                await fallbackCopyLink(currentUrl);
+            }
+        }
+    } else {
+        await fallbackCopyLink(currentUrl);
+    }
+}
+
+async function fallbackCopyLink(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        showTemporaryMessage('Link copied to clipboard! (Share not supported on this device)', 'info');
+    } catch (err) {
+        console.error('Copy failed:', err);
+        showTemporaryMessage('Could not copy link. Please copy manually.', 'error');
+    }
+}
+
+function showTemporaryMessage(msg, type = 'info') {
+    const existingMsg = document.getElementById('tempShareMsg');
+    if (existingMsg) existingMsg.remove();
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.id = 'tempShareMsg';
+    msgDiv.className = `temp-message ${type}`;
+    msgDiv.innerHTML = `<span class="material-icons">${type === 'success' ? 'check_circle' : (type === 'info' ? 'info' : 'error')}</span> ${msg}`;
+    
+    const buttonGroup = document.querySelector('.button-group');
+    if (buttonGroup) {
+        buttonGroup.parentNode.insertBefore(msgDiv, buttonGroup.nextSibling);
+        setTimeout(() => msgDiv.remove(), 4000);
+    }
+}
+
     // APK Download functionality
     function setupApkDownload() {
         const apkLink = document.getElementById('apkDownloadLink');
@@ -588,6 +642,7 @@
     document.getElementById('passwordInput')?.addEventListener('keypress', (e) => { if(e.key === 'Enter') verifyAndUnlock(); });
     document.getElementById('viewOpenContentBtn')?.addEventListener('click', viewOpenContent);
     document.getElementById('backToUnlockBtn')?.addEventListener('click', resetToUnlock);
+    document.getElementById('shareLinkBtn')?.addEventListener('click', shareCurrentLink);
     
     // Initialize
     loadLink();
